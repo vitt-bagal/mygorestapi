@@ -9,7 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/vitt-bagal/mygorestapi/handler/supplier"
@@ -112,15 +112,17 @@ func buyItem(w http.ResponseWriter, r *http.Request) {
 // Handler function to fast-buy-item endpoint
 func fastBuyItem(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	fmt.Println("Called buyitem API...")
-	var resp, result []supplier.Item
-	var wg sync.WaitGroup
-	wg.Add(len(envSupplier))
+	fmt.Println("Called fastbuyitem API...")
+	var resp []supplier.Item
+	var veg []supplier.Veg_Item
+	var grain []supplier.Grain_Item
+	//var wg sync.WaitGroup
+	//wg.Add(len(envSupplier))
 	var foundKey = false
 	w.Header().Set("Content-Type", "application/json")
 	for _, env := range envSupplier {
 		go func(apiEnv string) {
-			defer wg.Done()
+			//defer wg.Done()
 			apiurl := os.Getenv(apiEnv)
 			// Consume Rest api created by supplier
 			req, err := http.Get(apiurl)
@@ -133,22 +135,52 @@ func fastBuyItem(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				log.Fatalln(err)
 			}
-			json.Unmarshal(body, &resp)
+			if apiEnv == "VEG_SUPPLIER" {
+				fmt.Println("Called Veg supplier....")
+				json.Unmarshal(body, &veg)
+				n := len(veg)
+				r1 := make([]supplier.Item, n)
+				for i, v := range veg {
+					r1[i].Id = v.ProductId
+					r1[i].Name = v.ProductName
+					r1[i].Quantity = v.Quantity
+					r1[i].Price = v.Price
+				}
+				resp = append(resp, r1...)
+			} else if apiEnv == "GRAIN_SUPPLIER" {
+				fmt.Println("Called Grain supplier....")
+				json.Unmarshal(body, &grain)
+				n := len(grain)
+				r1 := make([]supplier.Item, n)
+				for i, v := range grain {
+					r1[i].Id = v.ItemId
+					r1[i].Name = v.ItemName
+					r1[i].Quantity = v.Quantity
+					r1[i].Price = v.Price
+				}
+				resp = append(resp, r1...)
+			} else {
+				fmt.Println("Called Fruit supplier....")
+				json.Unmarshal(body, &resp)
+			}
 			for i, val := range resp {
 				if strings.EqualFold(resp[i].Name, params["name"]) {
 					fmt.Printf("Product value is %v\n", val)
 					foundKey = true
-					result = append(result, val)
+					json.NewEncoder(w).Encode(val)
+					return
 				}
 			}
+
+			//wg.Wait()
 		}(env)
+		time.Sleep(100 * time.Millisecond)
+		//wg.Wait()
 	}
-	wg.Wait()
 	if !foundKey {
 		json.NewEncoder(w).Encode("NOT_FOUND")
 		return
 	}
-	json.NewEncoder(w).Encode(result)
 }
 
 // Home handler function
