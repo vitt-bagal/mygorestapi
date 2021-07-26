@@ -25,6 +25,9 @@ type Veg_Item struct {
 	Price       string `json:"price"`
 }
 
+// Currently id and name field names are differnt for two suppliers so adding two structs for now
+// TODO : Combine all structs to single one if possible
+
 // create veg_item(supplier2) struct
 type Grain_Item struct {
 	ItemId   string `json:"itemId"`
