@@ -9,7 +9,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/vitt-bagal/mygorestapi/handler/supplier"
@@ -113,7 +112,7 @@ func buyItem(w http.ResponseWriter, r *http.Request) {
 func fastBuyItem(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	fmt.Println("Called fastbuyitem API...")
-	var resp []supplier.Item
+	var resp, result []supplier.Item
 	var veg []supplier.Veg_Item
 	var grain []supplier.Grain_Item
 	//var wg sync.WaitGroup
@@ -122,7 +121,7 @@ func fastBuyItem(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	for _, env := range envSupplier {
 		go func(apiEnv string) {
-			//defer wg.Done()
+			// defer wg.Done()
 			apiurl := os.Getenv(apiEnv)
 			// Consume Rest api created by supplier
 			req, err := http.Get(apiurl)
@@ -167,19 +166,20 @@ func fastBuyItem(w http.ResponseWriter, r *http.Request) {
 				if strings.EqualFold(resp[i].Name, params["name"]) {
 					fmt.Printf("Product value is %v\n", val)
 					foundKey = true
-					json.NewEncoder(w).Encode(val)
-					return
+					result = append(result, val)
 				}
 			}
-
-			//wg.Wait()
+			json.NewEncoder(w).Encode(result)
+			if foundKey {
+				os.Exit(0)
+			}
 		}(env)
-		time.Sleep(100 * time.Millisecond)
+		//time.Sleep(100 * time.Millisecond)
 		//wg.Wait()
-	}
-	if !foundKey {
-		json.NewEncoder(w).Encode("NOT_FOUND")
-		return
+		if !foundKey {
+			json.NewEncoder(w).Encode("NOT_FOUND")
+			return
+		}
 	}
 }
 
